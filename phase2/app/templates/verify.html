@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Two-Factor Auth – Phase 2 2FA{% endblock %}
+{% block body %}
+<div class="card">
+  <div class="logo">
+    <div class="logo-icon">🔐</div>
+    <div>
+      <div class="logo-text">SecureAuth</div>
+      <div class="logo-sub">Phase 2 · TOTP 2FA</div>
+    </div>
+  </div>
+
+  <h1>Two-Factor Auth</h1>
+  <p class="subtitle">Step 2 of 2 — Enter the 6-digit code from your authenticator app.</p>
+
+  {% if error %}
+  <div class="alert alert-error">{{ error }}</div>
+  {% endif %}
+
+  <form method="post" action="/verify">
+    <div class="form-group">
+      <label for="code">Authenticator Code</label>
+      <input
+        type="text"
+        id="code"
+        name="code"
+        required
+        maxlength="6"
+        inputmode="numeric"
+        autocomplete="one-time-code"
+        placeholder="000000"
+        style="font-size:1.6rem;letter-spacing:.35rem;text-align:center;font-weight:700;"
+      />
+    </div>
+    <button type="submit" class="btn btn-primary">Verify →</button>
+  </form>
+
+  <div style="margin-top:1.4rem;padding:.9rem;background:var(--surface2);border-radius:9px;border:1px solid var(--border);font-size:.82rem;color:var(--muted);">
+    💡 Open <strong style="color:var(--text);">Google Authenticator</strong> on your phone and enter the current 6-digit code. Codes refresh every 30 seconds.
+  </div>
+
+  <div class="link-row"><a href="/login">← Back to Login</a></div>
+</div>
+{% endblock %}

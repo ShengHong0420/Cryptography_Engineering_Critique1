@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Dashboard – Phase 2 2FA{% endblock %}
+{% block body %}
+<div class="card" style="max-width:500px">
+  <div class="logo">
+    <div class="logo-icon">🔐</div>
+    <div>
+      <div class="logo-text">SecureAuth</div>
+      <div class="logo-sub">Phase 2 · TOTP 2FA</div>
+    </div>
+  </div>
+
+  <div class="alert alert-success">
+    ✅ Two-factor authentication verified. Welcome back!
+  </div>
+
+  <h1 style="margin-bottom:.3rem">Dashboard</h1>
+  <p class="subtitle">You are fully authenticated.</p>
+
+  <div style="background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:1.2rem;margin:1.4rem 0;">
+    <div style="display:flex;flex-direction:column;gap:.7rem;">
+      <div>
+        <div style="font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;">Logged in as</div>
+        <div style="font-size:1.1rem;font-weight:600;">{{ username }}</div>
+      </div>
+      <hr class="divider" style="margin:.2rem 0;" />
+      <div>
+        <div style="font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.3rem;">Auth Method</div>
+        <span class="badge badge-blue">🛡️ TOTP (HMAC-SHA1) verified</span>
+      </div>
+      <div>
+        <div style="font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.3rem;">Account Created</div>
+              <div style="font-size:.9rem;">{{ ((user.created_at | replace('T', ' '))[:16] + ' UTC') if user.created_at else 'N/A' }}</div>
+      </div>
+    </div>
+  </div>
+
+  <a href="/logout" class="btn btn-primary" style="text-align:center;text-decoration:none;display:block;padding:.78rem;
+     background:linear-gradient(135deg,#e05c6a,#c43c5a);">
+    Sign Out
+  </a>
+</div>
+{% endblock %}
