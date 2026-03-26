@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Setup Complete – Phase 2 2FA{% endblock %}
+{% block body %}
+<div class="card" style="max-width:520px">
+  <div class="logo">
+    <div class="logo-icon">🔐</div>
+    <div>
+      <div class="logo-text">SecureAuth</div>
+      <div class="logo-sub">Phase 2 · TOTP 2FA</div>
+    </div>
+  </div>
+
+  <div class="alert alert-success">
+    ✅ Account created! Scan the QR code below with Google Authenticator.
+  </div>
+
+  <h1 style="margin-bottom:.3rem">Your Secret Key</h1>
+  <p class="subtitle">Save this secret key somewhere safe. You will not see it again.</p>
+
+  <!-- QR Code -->
+  <div style="text-align:center; margin:1.4rem 0 1rem;">
+    <img src="data:image/png;base64,{{ qr_b64 }}"
+         alt="TOTP QR Code"
+         style="width:200px;height:200px;border-radius:10px;border:4px solid var(--surface2);" />
+    <p style="font-size:.8rem;color:var(--muted);margin-top:.6rem;">Scan with Google Authenticator</p>
+  </div>
+
+  <!-- Raw Secret -->
+  <div style="background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:1rem;margin-bottom:1.4rem;">
+    <div style="font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.4rem;">Secret Key (Base32)</div>
+    <code style="font-size:.95rem;word-break:break-all;color:var(--accent);">{{ secret }}</code>
+  </div>
+
+  <div class="badge badge-blue" style="margin-bottom:1.4rem;">👤 Registered as: {{ username }}</div>
+
+  <a href="/login" class="btn btn-primary" style="text-align:center;text-decoration:none;display:block;padding:.78rem;">
+    Proceed to Login →
+  </a>
+</div>
+{% endblock %}
