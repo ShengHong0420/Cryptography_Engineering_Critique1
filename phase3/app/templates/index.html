@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebAuthn Phase 3</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 400px; margin: 50px auto; text-align: center; }
+        input, button { margin: 10px; padding: 10px; width: 80%; }
+        #message { margin-top: 20px; font-weight: bold; color: blue; }
+        .error { color: red !important; }
+    </style>
+</head>
+<body>
+    <h2>Hardware Login (WebAuthn)</h2>
+    <input type="text" id="username" placeholder="Enter Username" required>
+    <br>
+    <button onclick="register()">Register (Save Passkey)</button>
+    <button onclick="login()">Login (Use Passkey)</button>
+
+    <div id="message"></div>
+
+    <script>
+        const msgDiv = document.getElementById('message');
+        const getUsername = () => document.getElementById('username').value.trim();
+
+        function showMessage(msg, isError = false) {
+            msgDiv.textContent = msg;
+            msgDiv.className = isError ? 'error' : '';
+        }
+
+        //Base64URL 轉 ArrayBuffer
+        function base64URLStringToBuffer(base64URLString) {
+            const base64 = base64URLString.replace(/-/g, '+').replace(/_/g, '/');
+            const padLength = (4 - (base64.length % 4)) % 4;
+            const padded = base64.padEnd(base64.length + padLength, '=');
+            const binary = atob(padded);
+            const buffer = new ArrayBuffer(binary.length);
+            const bytes = new Uint8Array(buffer);
+            for (let i = 0; i < binary.length; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+            return buffer;
+        }
+
+        //ArrayBuffer 轉 Base64URL 
+        function bufferToBase64URLString(buffer) {
+            const bytes = new Uint8Array(buffer);
+            let str = '';
+            for (const charCode of bytes) {
+                str += String.fromCharCode(charCode);
+            }
+            const base64String = btoa(str);
+            return base64String.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+        }
+
+        //註冊流程 
+        async function register() {
+            const username = getUsername();
+            if (!username) return showMessage("Please enter a username", true);
+
+            try {
+                // 1. 向後端請求註冊選項 
+                const optionsRes = await fetch(`/api/register/options?username=${encodeURIComponent(username)}`);
+                const optionsData = await optionsRes.json();
+
+                // 使用者已經註冊
+                if (!optionsRes.ok) {
+                    throw new Error(optionsData.detail || "Registration failed");
+                }
+
+                // 將後端傳來的字串轉換為瀏覽器 API 需要的 Buffer 格式
+                const publicKey = optionsData.publicKey;
+                publicKey.challenge = base64URLStringToBuffer(publicKey.challenge);
+                publicKey.user.id = base64URLStringToBuffer(publicKey.user.id);
+                if (publicKey.excludeCredentials) {
+                    publicKey.excludeCredentials.forEach(cred => {
+                        cred.id = base64URLStringToBuffer(cred.id);
+                    });
+                }
+
+                // 2. 呼叫瀏覽器 WebAuthn API 產生私鑰與簽章
+                let credential;
+                try {
+                    credential = await navigator.credentials.create({ publicKey });
+                } catch (err) {
+                    // 處理評分項目：使用者取消儲存私鑰流程
+                    throw new Error("The 'save private key' process was canceled: " + err.message);
+                }
+
+                // 3. 將結果整理成 JSON 傳回後端驗證
+                const credentialData = {
+                    id: credential.id,
+                    rawId: bufferToBase64URLString(credential.rawId),
+                    type: credential.type,
+                    response: {
+                        attestationObject: bufferToBase64URLString(credential.response.attestationObject),
+                        clientDataJSON: bufferToBase64URLString(credential.response.clientDataJSON),
+                    },
+                };
+
+                const verifyRes = await fetch(`/api/register/verify?username=${encodeURIComponent(username)}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(credentialData)
+                });
+
+                if (verifyRes.ok) {
+                    showMessage("Registration successful! You can now login.");
+                } else {
+                    const verifyData = await verifyRes.json();
+                    throw new Error(verifyData.detail || "Verification failed");
+                }
+
+            } catch (error) {
+                showMessage(error.message, true);
+            }
+        }
+
+        // 登入流程
+        async function login() {
+            const username = getUsername();
+            if (!username) return showMessage("Please enter a username", true);
+
+            try {
+                // 1. 向後端請求登入選項
+                const optionsRes = await fetch(`/api/login/options?username=${encodeURIComponent(username)}`);
+                const optionsData = await optionsRes.json();
+
+                // 使用者尚未註冊
+                if (!optionsRes.ok) {
+                    throw new Error(optionsData.detail || "Login failed");
+                }
+
+                const publicKey = optionsData.publicKey;
+                publicKey.challenge = base64URLStringToBuffer(publicKey.challenge);
+                if (publicKey.allowCredentials) {
+                    publicKey.allowCredentials.forEach(cred => {
+                        cred.id = base64URLStringToBuffer(cred.id);
+                    });
+                }
+
+                // 2. 呼叫瀏覽器 WebAuthn API 進行簽章
+                let assertion;
+                try {
+                    assertion = await navigator.credentials.get({ publicKey });
+                } catch (err) {
+                    // 使用者取消驗證流程
+                    throw new Error("The validation process was canceled: " + err.message);
+                }
+
+                // 3. 將簽章結果傳回後端驗證
+                const assertionData = {
+                    id: assertion.id,
+                    rawId: bufferToBase64URLString(assertion.rawId),
+                    type: assertion.type,
+                    response: {
+                        authenticatorData: bufferToBase64URLString(assertion.response.authenticatorData),
+                        clientDataJSON: bufferToBase64URLString(assertion.response.clientDataJSON),
+                        signature: bufferToBase64URLString(assertion.response.signature),
+                        userHandle: assertion.response.userHandle ? bufferToBase64URLString(assertion.response.userHandle) : null,
+                    },
+                };
+
+                const verifyRes = await fetch(`/api/login/verify?username=${encodeURIComponent(username)}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(assertionData)
+                });
+
+                if (verifyRes.ok) {
+                    showMessage("Login successful! Welcome back.");
+                } else {
+                    const verifyData = await verifyRes.json();
+                    throw new Error(verifyData.detail || "Login verification failed");
+                }
+
+            } catch (error) {
+                showMessage(error.message, true);
+            }
+        }
+    </script>
+</body>
+</html>
